@@ -15,22 +15,64 @@
 #
 #   See <http://www.opensource.org/licenses/bsd-license>
 
-import bob.measure
+# import bob.measure
+import os
+import sys
+
+import cv2
 import face_recognition
 import numpy as np
-import tensorflow.compat.v2 as tf
-import tensorflow_datasets as tfds
-
-tf.compat.v1.enable_eager_execution()
 
 # Threshold
-T = 0.5
+T = 0.2
 
 
-#
-# @params [np.ndarray]
-# @return [np.ndarray] array of distances from impostor attempts
-#
+def read_images(path, sz=None):
+    """Reads the images in a given folder, resizes images on the fly if size is
+    given.
+
+    Args: path: Path to a folder with subfolders representing the subjects
+    (persons).  sz: A tuple with the size Resizes
+
+    Returns: A list [X,y]
+
+            X: The images, which is a Python list of numpy arrays.  y: The
+            corresponding labels (the unique number of the subject, person) in
+            a Python list.  """
+    c = 0
+    X1, y1 = [], []
+    X2, y2 = [], []
+    for dirname, dirnames, _filenames in os.walk(path):
+        for subdirname in dirnames:
+            subject_path = os.path.join(dirname, subdirname)
+            i = 0
+            for filename in os.listdir(subject_path):
+                try:
+                    filepath = os.path.join(subject_path, filename)
+                    im = face_recognition.load_image_file(filepath)
+
+                    # resize to given size (if given)
+                    if (sz is not None):
+                        im = cv2.resize(im, sz)
+                    img = np.asarray(im, dtype=np.uint8)
+                    if i == 0:
+                        X1.append(img)
+                        y1.append(subdirname)
+                    elif i == 1:
+                        X2.append(img)
+                        y2.append(subdirname)
+                    else:
+                        break
+                    i += 1
+                except IOError:
+                    print("I/O error")
+                except Exception:
+                    print(("Unexpected error:", sys.exc_info()[0]))
+                    raise
+            c = c + 1
+    return [X1, y1, X2, y2]
+
+
 def calc_impostor_attempts(images: np.ndarray, sample_image: np.ndarray):
     #
     # Take one data for zero cost impostor attempts
@@ -45,25 +87,61 @@ def calc_impostor_attempts(images: np.ndarray, sample_image: np.ndarray):
                                           sample_image_encoding)
 
 
+def calc_genuine_attempts(sources, targets):
+    distances = []
+    for index in range(len(sources)):
+        source_face_encoding = face_recognition.face_encodings(
+            sources[index])[0]
+        target_face_encoding = face_recognition.face_encodings(
+            targets[index])[0]
+        distance = face_recognition.face_distance([target_face_encoding],
+                                                  source_face_encoding)[0]
+        distances.append(distance)
+
+    return distances
+
+
+def correctly_classified_negatives(elem):
+    return elem < T
+
+
+def false_non_match(elem):
+    return elem > T
+
+
+def calc_fmr(negatives):
+    print('negatives vector:\n', negatives)
+    correct_negatives = list(map(correctly_classified_negatives, negatives))
+    print('comparing with threshold', T, ':\n', correct_negatives)
+    FMR = (float(sum(correct_negatives)) / negatives.size)
+    print('FMR:', FMR)
+    return FMR
+
+
+def calc_fnmr(positives):
+    print('positives vector:\n', positives)
+    false_non_matches = list(map(false_non_match, positives))
+    print('comparing with threshold', T, ':\n', false_non_matches)
+    FNMR = (float(sum(false_non_matches)) / len(positives))
+    print('FMR:', FNMR)
+    return FNMR
+
+
 # main function
 def main():
-    train_ds, info = tfds.load("lfw", split="train", with_info=True)
-    train_ds = train_ds.shuffle(1024).batch(128).repeat(5).prefetch(10).take(1)
-    images_with_label = next(tfds.as_numpy(train_ds))
-    images = images_with_label["image"]
-    sample_image = images[0]
-    images = np.delete(images, 0, 0)
-    negatives = calc_impostor_attempts(images, sample_image)
-    print(negatives)
+    X1, y1, X2, y2 = read_images("./att-database-of-faces")
+    sample_image = X1.pop()
+    X2.pop()
+    y1.pop()
+    y2.pop()
+    negatives = calc_impostor_attempts(X1, sample_image)
+    fmr = calc_fmr(negatives)
 
-    correct_negatives = bob.measure.correctly_classified_negatives(
-        negatives, T)
-    FPR = (float(correct_negatives.sum()) / negatives.size)
-    print('FPR:', FPR)
+    positives = calc_genuine_attempts(X1, X2)
+    fnmr = calc_fnmr(positives)
 
+    print("FNMR: ", fnmr, " @FMR: ", fmr)
 
-# for example in images:
-#     numpy_images, numpy_labels = example["image"], example["label"]
 
 if __name__ == "__main__":
     main()

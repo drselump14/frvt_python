@@ -23,20 +23,20 @@ repos:
         types: [python]
         exclude: setup.py
 
-      - id: mypy
-        name: mypy
-        stages: [commit]
-        language: system
-        entry: pipenv run mypy
-        types: [python]
-        pass_filenames: false
-
-      - id: pytest
-        name: pytest
-        stages: [commit]
-        language: system
-        entry: pipenv run pytest
-        types: [python]
+      # - id: mypy
+      #   name: mypy
+      #   stages: [commit]
+      #   language: system
+      #   entry: pipenv run mypy
+      #   types: [python]
+      #   pass_filenames: false
+      #
+      # - id: pytest
+      #   name: pytest
+      #   stages: [commit]
+      #   language: system
+      #   entry: pipenv run pytest
+      #   types: [python]
 
       # - id: pytest-cov
       #   name: pytest
