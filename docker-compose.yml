@@ -1,0 +1,17 @@
+version: '3.7'
+
+x-app: &app
+  labels:
+    function: true
+  build:
+    context: .
+  image: frvt_python
+  tty: true
+  stdin_open: true
+
+services:
+   app:
+    <<: *app
+    volumes:
+      - $PWD:/app
+

@@ -31,13 +31,11 @@ RUN cd ~ && \
     python3 setup.py install --yes USE_AVX_INSTRUCTIONS
 
 
-
 RUN pip install --no-cache-dir pipenv
 
 WORKDIR /app
 ADD Pipfile .
 ADD Pipfile.lock .
 
-RUN pipenv install --system --deploy --clear
-
-ADD . .
+RUN pipenv lock --requirements > requirements.txt
+RUN pip install -r requirements.txt
