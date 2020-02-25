@@ -24,7 +24,7 @@ import face_recognition
 import numpy as np
 
 # Threshold
-T = 0.2
+T = float(os.getenv('THRESHOLD', 0.5))
 
 
 def read_images(path, sz=None):
