@@ -101,17 +101,13 @@ def calc_genuine_attempts(sources, targets):
     return distances
 
 
-def correctly_classified_negatives(elem):
+def classify_as_true(elem):
     return elem < T
-
-
-def false_non_match(elem):
-    return elem > T
 
 
 def calc_fmr(negatives):
     print('negatives vector:\n', negatives)
-    correct_negatives = list(map(correctly_classified_negatives, negatives))
+    correct_negatives = list(map(classify_as_true, negatives))
     print('comparing with threshold', T, ':\n', correct_negatives)
     FMR = (float(sum(correct_negatives)) / negatives.size)
     print('FMR:', FMR)
@@ -120,11 +116,16 @@ def calc_fmr(negatives):
 
 def calc_fnmr(positives):
     print('positives vector:\n', positives)
-    false_non_matches = list(map(false_non_match, positives))
+    false_non_matches = list(map(classify_as_true, positives))
     print('comparing with threshold', T, ':\n', false_non_matches)
-    FNMR = (float(sum(false_non_matches)) / len(positives))
-    print('FMR:', FNMR)
+    FNMR = 1 - (float(sum(false_non_matches)) / len(positives))
+    print('FMNR:', FNMR)
     return FNMR
+
+
+def print_pair(collection, labels):
+    for index in range(len(collection)):
+        print(labels[index], ':', collection[index])
 
 
 # main function
@@ -136,9 +137,11 @@ def main():
     y2.pop()
     negatives = calc_impostor_attempts(X1, sample_image)
     fmr = calc_fmr(negatives)
+    print_pair(negatives, y1)
 
     positives = calc_genuine_attempts(X1, X2)
     fnmr = calc_fnmr(positives)
+    print_pair(positives, y1)
 
     print("FNMR: ", fnmr, " @FMR: ", fmr)
 
